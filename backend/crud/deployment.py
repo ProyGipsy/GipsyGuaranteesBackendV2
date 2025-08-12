@@ -3,6 +3,9 @@ from .settings import *
 from .settings import BASE_DIR
 import sys
 
+for key, value in os.environ.items():
+    print(f'{key}: {value}')
+    
 DEBUG = False
 
 SECRET_KEY = os.environ.get('MY_SECRET_KEY')
@@ -59,7 +62,3 @@ STORAGES = {
 }
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-print("DJANGO_SETTINGS_MODULE:", os.environ.get('DJANGO_SETTINGS_MODULE'), file=sys.stderr)
-print("ALLOWED_HOSTS:", ALLOWED_HOSTS, file=sys.stderr)
-print("WEBSITE_HOSTNAME:", os.environ.get('WEBSITE_HOSTNAME'), file=sys.stderr)
