@@ -3,13 +3,17 @@ from .settings import *
 from .settings import BASE_DIR
 import sys
 
-#DEBUG = False
+DEBUG = False
 
 SECRET_KEY = os.environ.get('MY_SECRET_KEY')
 
 ALLOWED_HOSTS = [
     os.environ.get('WEBSITE_HOSTNAME'),
     os.environ.get('CUSTOM_HOST_NAME')
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    os.environ.get('VITE_FRONT_API_URL')
 ]
 
 CORS_ALLOWED_ORIGINS = [
