@@ -1,27 +1,61 @@
-from .views import *
 from django.urls import path
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from .views import (
+    userLogin,
+    publicRegister,
+    warrantyRegister,
+    warrantyHistory,
+    userProfileEdit,
+    userChangePassword,
+    technicalServiceLogin,
+    adminLogin,
+    adminCreateUsers,
+    adminEditUsers,
+    adminCreateBranch,
+    adminEditBranch,
+    adminGetUsers,
+    adminGetBranches,
+    adminGetCustomerByID,
+    adminGetMainCustomers,
+    adminGetRoles,
+    getBranchByCustomerID,
+)
 
-# CSRF Test
-@ensure_csrf_cookie
-def test_csrf(request):
-    return JsonResponse({'csrfToken': get_token(request)})
 
 urlpatterns = [
+    # General endpoints
+    #   Forgot Password
+
     # User's paths and endpoints
-    #   User Login
-    #   User Registration
+    #   Login
+    #   Public Register
+    #   Warranty Register
+    #   Warranty History
+    #   Edit Profile
     #   User Change Password
-    #   User Forgot Password
-    #   User get Branches info
-    #   User Warranty Registration
-    path('userRegister/', userRegister, name='user_register'),
+    path('userLogin/', userLogin, name='user_login'),
+    path('publicRegister/', publicRegister, name='user_register'),
+    path('warrantyRegister/', warrantyRegister, name='warranty_register'),
+    path('warrantyHistory/', warrantyHistory, name='warranty_history'),
+    path('userProfileEdit', userProfileEdit, name='user_profile_edit'),
+    path('userChangePassword/', userChangePassword, name='user_change_password'),    
 
     # Technical Services paths and endpoints
-    #   Technical Services Login
-    #   Technical Services Forgot Password
+    #   Login
+    #   Forgot Password
+    path('technicalServiceLogin/', technicalServiceLogin, name='technical_service_login'),
     
     # Administration paths and endpoints
+    #   Login
+    #   Create Users
+    #   Edit Users
+    #   Create Branch
+    #   Edit Branch
+    path('adminLogin/', adminLogin, name='admin_login'),    
+    path('adminCreateUsers/', adminCreateUsers, name='admin_create_users'),
+    path('adminEditUsers/', adminEditUsers, name='admin_edit_users'),
+    path('adminCreateBranch/', adminCreateBranch, name='admin_create_branch'),
+    path('adminEditBranch/', adminEditBranch, name='admin_edit_branch'),
+
     #   Get all users
     #   Get all branches
     #   Get all customers
@@ -29,18 +63,12 @@ urlpatterns = [
     #   Edit user
     #   Create branch
     #   Edit branch
-    #   Get all Main.Customers
+    #   Get all Main.Customers (With Warranty.Invetory)
+    #   Get all roles
     path('adminGetUsers/', adminGetUsers, name='admin_get_users'),
     path('adminGetBranches/', adminGetBranches, name='admin_get_branches'),
-    path('adminGetCustomers/', adminGetCustomers, name='admin_get_customers'),
-    path('adminCreateUser/', adminCreateUser, name='admin_create_user'),
-    path('adminEditUser/', adminEditUser, name='admin_edit_user'),
-    path('adminCreateBranch/', adminCreateBranch, name='admin_create_branch'),
-    path('adminEditBranch/', adminEditBranch, name='admin_edit_branch'),
+    path('adminGetCustomerByID/', adminGetCustomerByID, name='admin_get_customer_by_id'),
     path('adminGetMainCustomers/', adminGetMainCustomers, name='admin_get_MainCustomers'),
-    
-    # Token management
-    path('token-getCSRFTest/', test_csrf, name='test_csrf'),
-    path('token-getCSRF/', getCSRF, name='get_csrf_token'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('adminGetRoles/', adminGetRoles, name='admin_get_roles'),
+    path('getBranchByCustomerID/', getBranchByCustomerID, name='get_branch_by_customer_id'),
 ]
