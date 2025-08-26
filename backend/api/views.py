@@ -16,7 +16,7 @@ def get_onedriveProofsOfPayments(invoiceEntries):
     folder_path = "/GARANTIAS/Facturas"
     updated_entries = []
     
-    for invoice in invoiceEntries:
+    for entry in invoiceEntries:
         if entry[7]:
             filename = entry[7].split('/')[-1]
             file_url = f"https://graph.microsoft.com/v1.0/users/desarrollo@grupogipsy.com/drive/root:{folder_path}/{filename}"
@@ -1395,7 +1395,7 @@ def warrantyRegister(request):
             # Almacenamiento de facturas en OneDrive
             headers = get_onedrive_headers()
             ext = invoice_img.name.split('.')[-1]
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             safe_name = invoice_img.name.replace(" ", "_").replace("/", "_")
             unique_name = f"{timestamp}_{safe_name}"
             folder_path = "/GARANTIAS/Facturas"
