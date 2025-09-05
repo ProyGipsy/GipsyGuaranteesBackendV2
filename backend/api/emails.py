@@ -96,12 +96,12 @@ def create_registration_html(user_name):
 # Versión Admin
 def create_registration_company_html(data):
     if data['address'] != '':
-        address_li = f"<li><strong>Dirección:</strong> {data["address"]}</li>"
+        address_li = f"<li><strong>Dirección:</strong> {data['address']}</li>"
     else:
         address_li = ""
 
     if data['phone_number'] != '':
-        phone_li = f"<li><strong>Teléfono:</strong> {data["phone_number"]}</li>"
+        phone_li = f"<li><strong>Teléfono:</strong> {data['phone_number']}</li>"
     else:
         phone_li = ""
 
@@ -347,13 +347,15 @@ def create_warranty_registration_html(data):
                     </tr>
                     <tr>
                         <th>Código de Barras</th>
-                        <td>{data["barcode"]}</td>
+                        <td>{data["product_barcode"]}</td>
                     </tr>
                 </table>
                 <p>Para su referencia, se adjunta una copia de la factura de compra.</p>
                 <div class="invoice-section">
                     <h3>Factura Adjunta</h3>
-                    <img src="{data['invoice_img_path']}" alt="Factura del producto" />
+                    <a href="{data['invoice_img_path']}" target="_blank">
+                        <img src="{data['invoice_img_path']}" alt="Presione para visualizar la Factura del Producto">
+                    </a>
                 </div>
             </div>
             <div class="footer">
@@ -459,8 +461,8 @@ def create_warranty_registration_company_html(data):
                         <td>{data["warranty_id"]}</td>
                     </tr>
                     <tr>
-                        <th>Nombre del Usuario</th>
-                        <td>{data["user_name"]}</td>
+                        <th>Correo electrónico del Usuario</th>
+                        <td>{data["email_address"]}</td>
                     </tr>
                     <tr>
                         <th>Compañía Asociada</th>
@@ -492,13 +494,15 @@ def create_warranty_registration_company_html(data):
                     </tr>
                     <tr>
                         <th>Código de Barras</th>
-                        <td>{data["barcode"]}</td>
+                        <td>{data["product_barcode"]}</td>
                     </tr>
                 </table>
                 <p>La factura del producto se encuentra adjunta.</p>
                 <div class="invoice-section">
                     <h3>Factura Adjunta</h3>
-                    <img src="{data['invoice_img_path']}" alt="Factura del producto" />
+                    <a href="{data['invoice_img_path']}" target="_blank">
+                        <img src="{data['invoice_img_path']}" alt="Presione para visualizar la Factura del Producto">
+                    </a>
                 </div>
             </div>
             <div class="footer">
@@ -512,7 +516,7 @@ def create_warranty_registration_company_html(data):
 
 def send_warranty_register_email(data):
     try:
-        email_content_user = create_warranty_registration_html(data['first_name'])
+        email_content_user = create_warranty_registration_html(data)
 
         msg = EmailMessage(
             "Nueva garantía registrada en Gipsy Garantías",
