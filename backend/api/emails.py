@@ -1,6 +1,4 @@
 import os
-import ssl
-import smtplib
 
 from pathlib import Path
 from django.core.mail import EmailMessage
@@ -208,8 +206,7 @@ def send_user_register_email(data):
             "Gipsy Garantías - Nuevo Registro de Usuario",
             email_content_intern,
             os.environ.get('EMAIL_HOST_USER'),
-            #[os.environ.get('EMAIL_WARRANTY_GIPSYCORP')]
-            [os.environ.get('EMAIL_WARRANTY_TEST')]
+            [os.environ.get('EMAIL_WARRANTY_GIPSYCORP'), os.environ.get('EMAIL_WARRANTY_TEST')]
         )
 
         msg_intern.content_subtype = "html"
@@ -533,8 +530,7 @@ def send_warranty_register_email(data):
             "Gipsy Garantías - Nuevo Registro de Garantía",
             email_content_intern,
             os.environ.get('EMAIL_HOST_USER'),
-            #[os.environ.get('EMAIL_WARRANTY_GIPSYCORP')]
-            [os.environ.get('EMAIL_WARRANTY_TEST')]
+            [os.environ.get('EMAIL_WARRANTY_GIPSYCORP'), os.environ.get('EMAIL_WARRANTY_TEST')]
         )
 
         msg_intern.content_subtype = "html"
@@ -805,8 +801,11 @@ def send_warranty_open_case_email(data):
             'Gipsy Garantías - Apertura de Caso Servicio Técnico',
             email_content_intern,
             os.environ.get('EMAIL_HOST_USER'),
-            #[os.environ.get('EMAIL_WARRANTY_GIPSYCORP'), data[email_address]['technical_service']]
-            [os.environ.get('EMAIL_WARRANTY_TEST'), data['email_address']['technical_service']]
+            [
+                os.environ.get('EMAIL_WARRANTY_GIPSYCORP'),
+                data['email_address']['technical_service'],
+                os.environ.get('EMAIL_WARRANTY_TEST')
+            ]
         )
 
         msg_intern.content_subtype = 'html'
@@ -1093,8 +1092,11 @@ def send_warranty_update_case_email(data):
             'Gipsy Garantías - Actualización de Caso Servicio Técnico',
             email_content_intern,
             os.environ.get('EMAIL_HOST_USER'),
-            #[os.environ.get('EMAIL_WARRANTY_GIPSYCORP'), data[email_address]['technical_service']]
-            [os.environ.get('EMAIL_WARRANTY_TEST'), data['email_address']['technical_service']]
+            [
+                os.environ.get('EMAIL_WARRANTY_GIPSYCORP'),
+                data['email_address']['technical_service'],
+                os.environ.get('EMAIL_WARRANTY_TEST')
+            ]
         )
 
         msg_intern.content_subtype = 'html'
@@ -1379,8 +1381,11 @@ def send_warranty_close_case_email(data):
             'Gipsy Garantías - Cierre de Caso Servicio Técnico',
             email_content_intern,
             os.environ.get('EMAIL_HOST_USER'),
-            #[os.environ.get('EMAIL_WARRANTY_GIPSYCORP'), data[email_address]['technical_service']]
-            [os.environ.get('EMAIL_WARRANTY_TEST'), data['email_address']['technical_service']]
+            [
+                os.environ.get('EMAIL_WARRANTY_GIPSYCORP'),
+                data['email_address']['technical_service'],
+                os.environ.get('EMAIL_WARRANTY_TEST')
+            ]
         )
 
         msg_intern.content_subtype = 'html'
@@ -1390,3 +1395,125 @@ def send_warranty_close_case_email(data):
     except Exception as e:
         print(f'Error sending registration email: {e}')
         return False    
+
+# NOTIFICACIÓN DE CAMBIO DE CLAVE
+
+def create_password_reset_html(data):
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8"/>
+        <style>
+            body {{
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                color: black !important;
+                background: white !important;
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                padding: 20px;
+            }}
+            .container {{
+                max-width: 600px;
+                margin: 0 auto;
+                background-color: #f9f9f9;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 20px 30px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }}
+            .header {{
+                text-align: center;
+                border-bottom: 2px solid #6c757d;
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }}
+            .header h2 {{
+                margin: 0;
+                color: #333;
+            }}
+            .body-content {{
+                color: #555;
+            }}
+            .body-content p {{
+                margin: 0 0 15px;
+            }}
+            .footer {{
+                text-align: center;
+                margin-top: 30px;
+                padding-top: 15px;
+                border-top: 1px solid #e0e0e0;
+                font-size: 0.9em;
+                color: #888;
+            }}
+            .password-section {{
+                text-align: center;
+                margin: 30px 0;
+            }}
+            .password-box {{
+                display: inline-block;
+                padding: 15px 30px;
+                background-color: #e9ecef;
+                border: 1px dashed #adb5bd;
+                border-radius: 5px;
+                font-size: 1.5em;
+                font-weight: bold;
+                color: #333;
+                word-break: break-all;
+            }}
+            .button {{
+                display: inline-block;
+                padding: 10px 20px;
+                margin-top: 20px;
+                background-color: #007bff;
+                color: white !important;
+                text-decoration: none;
+                border-radius: 5px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h2>Restablecimiento de Contraseña</h2>
+            </div>
+            <div class="body-content">
+                <p><strong>Hola, {data['user_name']}.</strong></p>
+                <p>Hemos recibido una solicitud para restablecer su contraseña. Su código de verificación es el siguiente:</p>
+                <div class="password-section">
+                    <span class="password-box">{data['temp_password']}</span>
+                </div>
+                <p>Para su seguridad, le recomendamos encarecidamente que reestablezca su contraseña en la aplicación lo más pronto posible.</p>
+            </div>
+            <div style="text-align: center;">
+                 <a href="https://icy-tree-06332be0f.1.azurestaticapps.net/set-new-password" class="button">Reestablecer mi contraseña</a>
+            </div>
+            <div class="footer">
+                <p>Este es un correo automático, no responda a este mensaje.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html_content
+
+def send_temp_password_email(data):
+    try:
+        email_content = create_password_reset_html(data)
+
+        msg = EmailMessage(
+            'Gipsy Garantías - Recuperación de contraseña',
+            email_content,
+            os.environ.get('EMAIL_HOST_USER'),
+            [data['email_address']]
+        )
+
+        msg.content_subtype = "html"
+        msg.send()
+
+        return True
+
+    except Exception as e:
+        print(f'Error sending registration email: {e}')
+        return False 

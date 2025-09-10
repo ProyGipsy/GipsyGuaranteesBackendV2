@@ -10,33 +10,15 @@ from .emails import (
     send_warranty_register_email,
     send_warranty_open_case_email,
     send_warranty_update_case_email,
-    send_warranty_close_case_email
+    send_warranty_close_case_email,
+    send_temp_password_email,
 )
-from .utils import jwt_required
+
 from django.http import JsonResponse
 from json.decoder import JSONDecodeError
 from .onedrive import get_onedrive_headers
 from django.views.decorators.csrf import csrf_exempt
-
-@csrf_exempt
-def testEmail(request):
-    data_for_email = {
-        'user_name': 'test@example.com',
-        'first_name': 'Test',
-        'last_name': 'Example',
-        'email_address': 'test@example.com',
-        'address': 'Test address',
-        'phone_number': '0414-0011222'
-    }
-
-    email = send_user_register_email(data_for_email)
-
-    if email:
-        print(email)
-        return JsonResponse({'message': 'All good'}, status=200)
-    else:
-        print(email)
-        return JsonResponse({'error': 'Email not good'}, status=400)
+from .utils import jwt_required, generate_temp_password
     
 # General use Views
 #   Get Roles
@@ -884,10 +866,27 @@ def adminCreateUsers(request):
             """
             cursor.execute(user_sql, (email_address, password, customer_id, role_id))
 
-            # Commit the transaction if all operations were successful
-            connection.commit()
+            data_for_email = {
+                'user_name': email_address,
+                'first_name': first_name,
+                'last_name': last_name,
+                'email_address': email_address,
+                'address': address,
+                'phone_number': phone_number
+            }
 
-            return JsonResponse({'message': 'Usuario registrado éxitosamente'}, status=201)
+            email = send_user_register_email(data_for_email)
+
+            if email:
+                # Commit the transaction if all operations were successful
+                connection.commit()
+                return JsonResponse({'message': 'Usuario registrado exitosamente.'}, status=201)
+            else:
+                print('Ha ocurrido un error al enviar el correo')
+                return JsonResponse({
+                    'error': 'Error: No se ha podido enviar el correo de registro de usuario.',
+                    'warning': 'Ha ocurrido un error al enviar el correo de registro de usuario, por favor inténtelo más tarde.'
+                    }, status=400)
         
         except pyodbc.Error as db_error:
             if connection:
@@ -1214,6 +1213,13 @@ def adminEditBranch(request):
 
 # Technical Service Views
 #   1. Login
+#   2. Get Warranty By ID
+#   3. Technical Service History
+#   4. Technical Service Get Status
+#   5. Technical Service Get Issue
+#   6. Technical Service Open Case
+#   7. Technical Service Update Case
+#   8. Technical Service Close Case
 @csrf_exempt
 def technicalServiceLogin(request):
     if request.method == 'POST':
@@ -1460,7 +1466,7 @@ def technicalServiceHistory(request):
             sql = """
                 SELECT TS.CaseNumber, TS.warrantyID, TS.receptionDate, TS.lastUpdated, TS.closedDate, 
                         C.FirstName + ' ' + C.LastName AS Customer, B.companyName, I.Description, TSS.statusDescription,
-                        W.branchID, I.ItemLookupCode, I.SubDescription3 AS Brand, C.NationalId, C.PhoneNumber, C.EmailAddress
+                        W.branchID, I.BinLocation, I.SubDescription3 AS Brand, C.NationalId, C.PhoneNumber, C.EmailAddress
                 FROM Warranty.technicalService TS
                 JOIN Warranty.Users U ON TS.registerID = U.userID
                 JOIN Warranty.Customer C ON U.CustomerID = C.ID
@@ -2035,7 +2041,7 @@ def userLogin(request):
             access_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
             
             return JsonResponse({
-                'message': 'Inicio de sesión éxitoso',
+                'message': 'Inicio de sesión exitoso',
                 'access_token': access_token
                 }, status=200)
         
@@ -2167,8 +2173,8 @@ def publicRegister(request):
             else:
                 print('Ha ocurrido un error al enviar el correo')
                 return JsonResponse({
-                    'error': 'Error: No se ha podido enviar el correo de registro de garrantía.',
-                    'warning': 'Ha ocurrido un error al enviar el correo de registro de garantía, por favor inténtelo más tarde.'
+                    'error': 'Error: No se ha podido enviar el correo de registro de usuario',
+                    'warning': 'Ha ocurrido un error al enviar el correo de registro de usuario, por favor inténtelo más tarde.'
                     }, status=400)
 
         except pyodbc.Error as db_error:
@@ -2633,4 +2639,204 @@ def userChangePassword(request):
         return JsonResponse({
             'error': 'Invalid request method',
             'warning': 'Ha ocurrido un error, por favor inténtelo más tarde.'
+            }, status=405)
+
+@csrf_exempt
+def forgottenPassword(request):
+    if request.method == 'POST':
+        connection = None
+        cursor = None
+
+        try:
+            try:
+                data = json.loads(request.body)
+            except JSONDecodeError:
+                return JsonResponse({
+                    'error': 'JSON Inválido',
+                    'warning': 'Ha ocurrido un error, por favor inténtelo más tarde.'
+                    }, status=400)
+            
+            email_address = data.get('email')
+
+            if not email_address:
+                return JsonResponse({
+                'error': 'Error: Ha ocurrido un error con los campos requeridos.',
+                'warning': 'Ha ocurrido un error, por favor inténtelo más tarde.'
+                }, status=400)
+
+            connection = pyodbc.connect(
+                f'Driver={{ODBC Driver 18 for SQL Server}};'
+                f'Server={os.environ["DB_SERVER"]};'
+                f'Database={os.environ["DB_NAME"]};'
+                f'UID={os.environ["DB_USER"]};'
+                f'PWD={os.environ["DB_PASSWORD"]};'
+            )
+            cursor = connection.cursor()
+
+            sql = """
+                SELECT COUNT(*)
+                FROM Warranty.Users
+                WHERE Users = ?
+            """
+            cursor.execute(sql, (email_address,))
+            if cursor.fetchone()[0] <= 0:
+                return JsonResponse({
+                'error': 'No existe un usuario asociado a este correo electrónico',
+                'warning': 'No existe un usuario asociado a este correo electrónico'
+                }, status=404)
+
+            sql_name = """
+                SELECT U.userID, C.FirstName, R.Description
+                FROM Warranty.Users U
+                JOIN Warranty.Customer C ON C.ID = U.CustomerID
+                JOIN Warranty.Role R ON U.roleID = R.RoleID
+                WHERE U.Users = ?
+            """
+            cursor.execute(sql_name, (email_address,))
+            user_id, first_name, user_role = cursor.fetchone()
+
+            if not first_name:
+                print("Error al obtener el nombre del usuario.")
+                return JsonResponse({
+                    'error': 'Error al obtener el nombre del usuario'
+                }, status=400)
+
+            
+            temp_password = generate_temp_password()
+            if not temp_password:
+                print("Error al generar la contraseña temporal")
+                return JsonResponse({
+                'error': 'Error: Ha ocurrido un error con los campos requeridos.',
+                'warning': 'Ha ocurrido un error, por favor inténtelo más tarde.'
+                }, status=400)
+
+            jwt_secret = os.environ.get("JWT_SECRET_KEY")
+            if not jwt_secret:
+                print('Error: Server misconfiguration: Missing JWT secret key')
+                return JsonResponse({
+                    'error': 'Server misconfiguration: missing JWT secret key'
+                }, status=404)
+
+            payload = {
+                'user_id': user_id,
+                'user_first_name': first_name,
+                'email_address': email_address,
+                'temp_password': temp_password,
+                'role': user_role,
+                'exp': datetime.datetime.now() + datetime.timedelta(minutes=30)
+            }
+
+            temp_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
+            
+            data_for_email = {
+                'user_name': first_name,
+                'email_address': email_address,
+                'temp_password': temp_password
+            }
+
+            email = send_temp_password_email(data_for_email)
+
+            if email:
+                return JsonResponse({
+                    'message': 'Correo enviado de forma exitosa',
+                    'temp_token': temp_token
+                }, status=200)
+            else:
+                print('Ha ocurrido un error al enviar el correo')
+                return JsonResponse({
+                    'error': 'Error: No se ha podido enviar el correo con el código de recuperación.',
+                    'warning': 'Ha ocurrido un error al enviar el correo con el código de recuperación, por favor inténtelo más tarde.'
+                    }, status=400)
+                       
+        except Exception as e:
+            print("Error: " + str(e))
+            return JsonResponse({
+                'error': str(e),
+                'warning': 'Ha ocurrido un error, inténtelo más tarde.'
+                }, status=500)
+
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
+
+    else:
+        return JsonResponse({
+            'error': 'Invalid request method',
+            'warning': 'Ha ocurrido un error, inténtelo más tarde.'
+            }, status=405)
+
+@csrf_exempt
+def resetPassword(request):
+    if request.method == 'POST':
+        connection = None
+        cursor = None
+
+        try:
+            try:
+                data = json.loads(request.body)
+            except JSONDecodeError:
+                return JsonResponse({
+                    'error': 'JSON Inválido',
+                    'warning': 'Ha ocurrido un error, por favor inténtelo más tarde.'
+                    }, status=400)
+            
+            user_id = data.get('user_id')
+            new_password = data.get('new_password')
+
+            if not all([user_id, new_password]):
+                return JsonResponse({
+                'error': 'Error: Ha ocurrido un error con los campos requeridos.',
+                'warning': 'Ha ocurrido un error, por favor inténtelo más tarde.'
+                }, status=400)
+
+            # Establish database connection
+            connection = pyodbc.connect(
+                f'Driver={{ODBC Driver 18 for SQL Server}};'
+                f'Server={os.environ["DB_SERVER"]};'
+                f'Database={os.environ["DB_NAME"]};'
+                f'UID={os.environ["DB_USER"]};'
+                f'PWD={os.environ["DB_PASSWORD"]};'
+            )
+            cursor = connection.cursor()
+
+            sql = """
+                UPDATE Warranty.Users
+                SET Password = ?
+                WHERE userID = ?
+            """
+            cursor.execute(sql, (new_password, user_id))
+            connection.commit()
+            return JsonResponse({'message': 'Contraseña actualizada con éxito'}, status=200)
+        
+        except pyodbc.Error as db_error:
+            if connection:
+                connection.rollback()
+            
+            print(f"Error: {db_error}")
+            return JsonResponse({
+                'error': f'A database error ocurred: {db_error}',
+                'warning': 'Ha ocurrido un error, por favor inténtelo más tarde.'
+                }, status=500)
+        
+        except Exception as e:
+            if connection:
+                connection.rollback()
+            
+            print("Error: " + str(e))
+            return JsonResponse({
+                'error': str(e),
+                'warning': 'Ha ocurrido un error, inténtelo más tarde.'
+                }, status=500)
+     
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
+    else:
+        return JsonResponse({
+            'error': 'Invalid request method',
+            'warning': 'Ha ocurrido un error, inténtelo más tarde.'
             }, status=405)
