@@ -289,7 +289,9 @@ def getProductByBarCode(request):
                 SELECT I.ID, I.CategoryID, I.Description AS productDetail, I.SubDescription3 AS Brand, C.Name AS Category
                 FROM Main.Item I
                 JOIN Main.Category C ON C.ID = I.CategoryID AND C.isRetail = I.isRetail
-                WHERE I.isRetail = 1 AND I.ItemLookupCode = ?
+                WHERE I.isRetail = 1
+                AND C.ID IN (4, 7, 13, 15, 16, 18, 19, 20, 21, 22, 24, 25, 27, 29, 30, 40, 45, 74, 75, 97, 98, 107, 127, 130, 131, 135, 136, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 154, 155, 158, 190, 220, 240, 265, 266, 272, 275, 279, 280, 281, 418, 435, 490, 511, 517, 520, 528, 574, 627, 737, 738, 741, 745, 746, 747, 754, 757, 775, 776, 782, 848, 966, 1010, 1012, 1013, 1014, 1019, 1020, 1021)
+                AND I.ItemLookupCode = ?
             """
             cursor.execute(sql, barCode)
 
@@ -1375,8 +1377,9 @@ def technicalServiceGetWarrantyByID(request):
                 JOIN Warranty.warrantyStatus S ON W.statusID = S.statusID
                 LEFT JOIN Warranty.technicalService TS ON W.WarrantyNumber = TS.warrantyID
                 LEFT JOIN Warranty.technicalServiceStatus TSS ON TS.statusID = TSS.statusID
-				JOIN Warranty.Customer C ON W.registerID = C.ID
-                JOIN Warranty.Branch B ON W.branchID = B.branchID
+				JOIN Warranty.Users U ON W.registerID = U.userID
+				JOIN Warranty.Customer C ON U.CustomerID = C.ID
+                LEFT JOIN Warranty.Branch B ON W.branchID = B.branchID
                 WHERE W.WarrantyNumber = ?
             """
             cursor.execute(sql, (warranty_number, ))
@@ -1480,12 +1483,13 @@ def technicalServiceHistory(request):
                         C.FirstName + ' ' + C.LastName AS Customer, B.companyName, I.Description, TSS.statusDescription,
                         W.branchID, I.BinLocation, I.SubDescription3 AS Brand, C.NationalId, C.PhoneNumber, C.EmailAddress
                 FROM Warranty.technicalService TS
-                JOIN Warranty.Users U ON TS.registerID = U.userID
-                JOIN Warranty.Customer C ON U.CustomerID = C.ID
                 JOIN Warranty.warranty W ON TS.warrantyID = W.WarrantyNumber
-                JOIN Warranty.Branch B ON W.branchID = B.branchID
+				JOIN Warranty.Users U ON W.registerID = U.userID
+                JOIN Warranty.Customer C ON U.CustomerID = C.ID
+                LEFT JOIN Warranty.Branch B ON W.branchID = B.branchID
                 JOIN Main.Item I ON W.ItemId = I.ID AND W.isRetail = I.isRetail
                 JOIN Warranty.technicalServiceStatus TSS ON TS.statusID = TSS.statusID
+				ORDER BY TS.warrantyID
             """
             cursor.execute(sql)
             ts_cases = cursor.fetchall()
@@ -2625,12 +2629,12 @@ def warrantyHistory(request):
 
             # Fetch warranty history
             sql = """
-                SELECT W.WarrantyNumber, W.purchaseDate, W.registrationDate, W.usedCount, B.companyName, I.Description AS ProductName, S.description AS WarrantyStatus
+                SELECT W.WarrantyNumber, W.purchaseDate, W.registrationDate, W.usedCount, B.companyName, I.Description AS ProductName, S.description AS WarrantyStatus, I.SubDescription3 AS itemBrand
                 FROM Warranty.warranty W
-                JOIN Warranty.Branch B ON W.branchID = B.branchID
+                LEFT JOIN Warranty.Branch B ON W.branchID = B.branchID
                 JOIN Main.Item I ON W.ItemId = I.ID AND I.isRetail = W.isRetail
                 JOIN Warranty.warrantyStatus S ON W.statusID = S.statusID
-				WHERE W.registerID = ?  
+				WHERE W.registerID = ?
             """
             cursor.execute(sql, (user_id,))
             warranties = cursor.fetchall()
