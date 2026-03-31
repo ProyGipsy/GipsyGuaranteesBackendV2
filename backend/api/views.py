@@ -1225,13 +1225,6 @@ def adminEditBranch(request):
 
 # Technical Service Views
 #   1. Login
-#   2. Get Warranty By ID
-#   3. Technical Service History
-#   4. Technical Service Get Status
-#   5. Technical Service Get Issue
-#   6. Technical Service Open Case
-#   7. Technical Service Update Case
-#   8. Technical Service Close Case
 @csrf_exempt
 def technicalServiceLogin(request):
     if request.method == 'POST':
@@ -1353,6 +1346,7 @@ def technicalServiceLogin(request):
             'warning': 'Ha ocurrido un error, inténtelo más tarde. (Invalid Request)'
             }, status=405)
 
+#   2. Get Warranty By ID
 @jwt_required
 def technicalServiceGetWarrantyByID(request):
     if request.method == 'GET':
@@ -1376,15 +1370,22 @@ def technicalServiceGetWarrantyByID(request):
                 f'PWD={os.environ["DB_PASSWORD"]};')
             cursor = connection.cursor()
 
+            # Se añadieron W.invoiceCopyPath y W.invoiceFileName al SELECT
             sql = """
-                SELECT W.WarrantyNumber, W.purchaseDate, W.invoiceNumber, I.Description AS Brand, I.SubDescription3 AS Model, S.description, W.usedCount, COALESCE(TSS.statusDescription, 'N/A') AS TechnicalServiceStatus, C.FirstName + ' ' + C.LastName AS Customer, C.NationalId, C.PhoneNumber, C.EmailAddress, B.companyName
+                SELECT 
+                    W.WarrantyNumber, W.purchaseDate, W.invoiceNumber, 
+                    W.invoiceCopyPath, W.invoiceFileName, 
+                    I.Description AS Brand, I.SubDescription3 AS Model, 
+                    S.description, W.usedCount, 
+                    COALESCE(TSS.statusDescription, 'N/A') AS TechnicalServiceStatus, 
+                    C.FirstName + ' ' + C.LastName AS Customer, C.NationalId, C.PhoneNumber, C.EmailAddress, B.companyName
                 FROM Warranty.warranty W
                 JOIN Main.Item I ON W.ItemId = I.ID AND W.isRetail = I.isRetail
                 JOIN Warranty.warrantyStatus S ON W.statusID = S.statusID
                 LEFT JOIN Warranty.technicalService TS ON W.WarrantyNumber = TS.warrantyID
                 LEFT JOIN Warranty.technicalServiceStatus TSS ON TS.statusID = TSS.statusID
-				JOIN Warranty.Users U ON W.registerID = U.userID
-				JOIN Warranty.Customer C ON U.CustomerID = C.ID
+                JOIN Warranty.Users U ON W.registerID = U.userID
+                JOIN Warranty.Customer C ON U.CustomerID = C.ID
                 LEFT JOIN Warranty.Branch B ON W.branchID = B.branchID
                 WHERE W.WarrantyNumber = ?
             """
@@ -1393,6 +1394,7 @@ def technicalServiceGetWarrantyByID(request):
             warranty = cursor.fetchone()
 
             if warranty:
+                # Esta línea automáticamente incluirá invoiceCopyPath e invoiceFileName en el JSON
                 warranty_dict = dict(zip([column[0] for column in cursor.description], warranty))
                 return JsonResponse(warranty_dict, safe=False)
             else:
@@ -1430,6 +1432,7 @@ def technicalServiceGetWarrantyByID(request):
             'warning': 'Ha ocurrido un error, por favor inténtelo más tarde. (Invalid Request)'
             }, status=405)
 
+#   3. Technical Service History
 def technicalServiceHistory(request):
     if request.method == 'GET':
         connection = None
@@ -1452,37 +1455,6 @@ def technicalServiceHistory(request):
                 f'PWD={os.environ["DB_PASSWORD"]};'
             )
             cursor = connection.cursor()
-            
-            """
-            Flujo real deshabilitado mientras se valida el
-            tema de las sucursales asociadas al servicio técnico
-
-            sql = 
-                SELECT U.branchID
-                FROM Warranty.Users U
-                WHERE U.userID = ?
-            
-            cursor.execute(sql, (user_id))
-
-            branch_id = cursor.fetchval()
-
-            if not branch_id:
-                return JsonResponse({'error': 'No se pudo obtener la sucursal a la que se encuentra asociado'}, status=400)
-
-            sql = 
-                SELECT TS.CaseNumber, TS.warrantyID, TS.receptionDate, C.FirstName + ' ' + C.LastName AS Customer, B.companyName, I.Description, TSS.statusDescription, W.branchID
-                FROM Warranty.technicalService TS
-                JOIN Warranty.Users U ON TS.registerID = U.userID
-                JOIN Warranty.Customer C ON U.CustomerID = C.ID
-                JOIN Warranty.warranty W ON TS.warrantyID = W.WarrantyNumber
-                JOIN Warranty.Branch B ON W.branchID = B.branchID
-                JOIN Main.Item I ON W.ItemId = I.ID AND W.isRetail = I.isRetail
-                JOIN Warranty.technicalServiceStatus TSS ON TS.statusID = TSS.statusID
-                WHERE W.branchID = ?
-            
-
-            cursor.execute(sql, (branch_id))
-            """
 
             sql = """
                 SELECT TS.CaseNumber, TS.warrantyID, TS.receptionDate, TS.lastUpdated, TS.closedDate, 
@@ -1538,6 +1510,7 @@ def technicalServiceHistory(request):
             'warning': 'Ha ocurrido un error, inténtelo más tarde. (Invalid Request)'
             }, status=405)
 
+#   4. Technical Service Get Status
 def technicalServiceGetStatus(request):
     if request.method == 'GET':
         connection = None
@@ -1597,6 +1570,7 @@ def technicalServiceGetStatus(request):
             'warning': 'Ha ocurrido un error, por favor inténtelo más tarde. (Invalid Request)'
             }, status=405)
 
+#   5. Technical Service Get Issue
 def technicalServiceGetIssue(request):
     if request.method == 'GET':
         connection = None
@@ -1797,7 +1771,8 @@ def technicalServiceEditIssue(request):
             'error': 'Invalid request method',
             'warning': 'Ha ocurrido un error, por favor inténtelo más tarde. (Invalid Request)'
             }, status=405)
-
+    
+#   6. Technical Service Open Case
 @csrf_exempt
 @jwt_required
 def technicalServiceOpenCaseWarranty(request):
@@ -1908,6 +1883,7 @@ def technicalServiceOpenCaseWarranty(request):
             'warning': 'Ha ocurrido un error, por favor inténtelo más tarde. (Invalid Request)'
             }, status=405)
 
+#   7. Technical Service Update Case
 @csrf_exempt
 @jwt_required
 def technicalServiceUpdateCase(request):
@@ -1972,10 +1948,10 @@ def technicalServiceUpdateCase(request):
 
             sql = """
                 UPDATE Warranty.technicalService
-                SET issueID = ?, issueResolutionDetails = ?, statusID = ?, lastUpdated = GETDATE(), diagnosticCopyPath = ?
+                SET issueID = ?, issueResolutionDetails = ?, statusID = ?, lastUpdated = GETDATE(), diagnosticCopyPath = ?, diagnosticFileName = ?
                 WHERE CaseNumber = ?
             """
-            cursor.execute(sql, (int(issue_id), str(issue_resolution_details), int(status_id), public_diagnostic_url, int(case_number)))
+            cursor.execute(sql, (int(issue_id), str(issue_resolution_details), int(status_id), public_diagnostic_url, unique_name, int(case_number)))
             
             if cursor.rowcount == 0:
                 return JsonResponse({
@@ -2032,12 +2008,14 @@ def technicalServiceUpdateCase(request):
                 cursor.close()
             if connection:
                 connection.close()
+                
     else:
         return JsonResponse({
             'error': 'Invalid request method',
             'warning': 'Ha ocurrido un error, por favor inténtelo más tarde. (Invalid Request)'
             }, status=405)
 
+#   8. Technical Service Close Case
 @csrf_exempt
 @jwt_required
 def technicalServiceCloseCase(request):
@@ -2103,10 +2081,10 @@ def technicalServiceCloseCase(request):
 
             sql = """
                 UPDATE Warranty.technicalService
-                SET issueID = ?, issueResolutionDetails = ?, statusID = ?, lastUpdated = GETDATE(), closedDate = GETDATE(), requiredChange = ?, diagnosticCopyPath = ?
+                SET issueID = ?, issueResolutionDetails = ?, statusID = ?, lastUpdated = GETDATE(), closedDate = GETDATE(), requiredChange = ?, diagnosticCopyPath = ?, diagnosticFileName = ?
                 WHERE CaseNumber = ?
             """
-            cursor.execute(sql, (int(issue_id), str(issue_resolution_details), status_id, required_change, public_diagnostic_url, case_number))
+            cursor.execute(sql, (int(issue_id), str(issue_resolution_details), status_id, required_change, public_diagnostic_url, unique_name, case_number))
             
             if cursor.rowcount == 0:
                 return JsonResponse({
@@ -2570,7 +2548,10 @@ def warrantyRegister(request):
                 ext = invoice_img.name.split('.')[-1]
                 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
                 safe_name = invoice_img.name.replace(" ", "_").replace("/", "_")
-                unique_name = f"{timestamp}_{safe_name}"
+                
+                # Este es el nombre exacto que se guarda en OneDrive y ahora en BD
+                unique_name = f"{timestamp}_{safe_name}" 
+                
                 folder_path = "/GARANTIAS/Facturas"
                 upload_url = f"https://graph.microsoft.com/v1.0/users/desarrollo@grupogipsy.com/drive/root:/{folder_path}/{unique_name}:/content"
                 
@@ -2606,12 +2587,15 @@ def warrantyRegister(request):
                         'warning': 'Ya existe una garantía para este producto asociada a esta factura.'
                         }, status=400)
 
+                # --- QUERY ACTUALIZADO ---
+                # Se añadió invoiceFileName al INSERT y su respectivo parámetro '?' en VALUES
                 sql = """
-                    INSERT INTO Warranty.warranty (registerID, branchID, ItemId, isRetail, purchaseDate, registrationDate, statusID, productBrand, productBarcode, invoiceCopyPath, usedCount, invoiceNumber, CustomerID)
+                    INSERT INTO Warranty.warranty (registerID, branchID, ItemId, isRetail, purchaseDate, registrationDate, statusID, productBrand, productBarcode, invoiceCopyPath, usedCount, invoiceNumber, CustomerID, invoiceFileName)
                     OUTPUT INSERTED.WarrantyNumber
-                    VALUES (?, ?, ?, ?, ?, GETDATE(), ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, GETDATE(), ?, ?, ?, ?, ?, ?, ?, ?)
                 """
-                cursor.execute(sql, (register_id, branch_id, item_id, is_retail, purchase_date, status_id, product_brand, product_barcode, public_invoice_url, used_count, invoice_number, main_customer))
+                # Se añadió unique_name en el execute en el mismo orden que en el query
+                cursor.execute(sql, (register_id, branch_id, item_id, is_retail, purchase_date, status_id, product_brand, product_barcode, public_invoice_url, used_count, invoice_number, main_customer, unique_name))
                 warranty_number = cursor.fetchval()
 
                 # Reduce the quantity of available warranties in the inventory
